@@ -284,7 +284,13 @@ const PAGES=["lo/p00.jpg","lo/p01.jpg","lo/p02.jpg","lo/p03.jpg","lo/p04.jpg","l
     const d = document.createElement('div');
     d.className = 'page';
     if (i === 0 || i === N - 1) d.dataset.density = 'hard';
-    const im = new Image(); im.decoding = 'async'; im.onload = im.onerror = () => { loadedN++; }; im.src = src; pageImgs.push(im); im.alt = 'Page ' + (i + 1); im.draggable = false;
+    const im = new Image(); im.decoding = 'async';
+    // a page counts as ready only once it is downloaded AND decoded, so the splash covers all the work and the book opens fully warm
+    // (phones decode just the first dozen pages up front, to keep memory in check; the rest are decoded as you approach them)
+    const ready = () => { loadedN++; };
+    im.onerror = ready;
+    im.onload = () => { (im.decode && (!isPhone || i < 12)) ? im.decode().then(ready, ready) : ready(); };
+    im.src = src; pageImgs.push(im); im.alt = 'Page ' + (i + 1); im.draggable = false;
     d.appendChild(im);
     book.appendChild(d);
   });
@@ -293,7 +299,7 @@ const PAGES=["lo/p00.jpg","lo/p01.jpg","lo/p02.jpg","lo/p03.jpg","lo/p04.jpg","l
     width: 600, height: 600, size: 'stretch',
     minWidth: isPhone ? 100 : 220, maxWidth: 1000, minHeight: isPhone ? 100 : 220, maxHeight: 1000,
     showCover: true, usePortrait: !isPhone, startZIndex: 0, autoSize: true,
-    maxShadowOpacity: .45, flippingTime: 1200, mobileScrollSupport: false,
+    maxShadowOpacity: .45, flippingTime: 1000, mobileScrollSupport: false,
     drawShadow: true, swipeDistance: 20, clickEventForward: false, disableFlipByClick: true
   });
   flip.loadFromHTML(book.querySelectorAll('.page'));
