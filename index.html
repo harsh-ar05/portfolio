@@ -63,13 +63,19 @@
   /* only the few pages on screen get a layer (the rest are display:none), so the curl is composited, not repainted */
   .stf__item,.stf__outerShadow,.stf__innerShadow,.stf__hardShadow,.stf__hardInnerShadow{will-change:transform;-webkit-backface-visibility:hidden;backface-visibility:hidden}
   .page img{display:block;width:100%;height:100%;object-fit:cover;pointer-events:none;user-select:none;-webkit-user-drag:none}
-  .nav{position:fixed;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;
-    display:grid;place-items:center;color:var(--mute);background:var(--bar);border:1px solid var(--line);z-index:10;
-    transition:color .15s,opacity .2s}
-  .nav:hover{color:var(--accent)}
-  .nav.l{left:14px}.nav.r{right:14px}
+  /* side page buttons: a see-through edge strip with a bare chevron (black, K 66%); the rounded box (black, K 33%) shows only while the pointer is over the strip */
+  .nav{position:fixed;top:50%;transform:translateY(-50%);width:56px;height:min(56vh,460px);display:grid;place-items:center;z-index:10;
+    color:rgba(0,0,0,.66);background:none;border:0;border-radius:0;transition:opacity .2s}
+  .nav::before{content:"";position:absolute;left:50%;top:50%;width:46px;height:min(220px,100%);transform:translate(-50%,-50%);border-radius:10px;
+    background:rgba(0,0,0,.33);opacity:0;transition:opacity .18s;pointer-events:none}
+  .nav:focus-visible{outline:none}
+  .nav:focus-visible::before{opacity:1}
+  @media (hover:hover){ .nav:hover::before{opacity:1} }
+  .nav.l{left:0}.nav.r{right:0}
   .nav[disabled]{opacity:0;pointer-events:none}
-  .nav svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.5}
+  .nav svg{position:relative;width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+  /* dark mode: white + difference blend = dark over the white pages, light over the dark margin, so the arrows never vanish */
+  @media (prefers-color-scheme: dark){ .nav{color:rgba(255,255,255,.66);mix-blend-mode:difference} .nav::before{background:rgba(255,255,255,.33)} }
 
   /* scroll view */
   .scroll{position:fixed;inset:var(--barh) 0 0 0;overflow-y:auto;overflow-x:hidden;display:none;padding:28px 20px 60px;scroll-behavior:smooth;touch-action:manipulation}
