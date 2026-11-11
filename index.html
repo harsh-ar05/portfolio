@@ -166,7 +166,7 @@
   body.clean .mock{inset:0}
 
   /* loading screen: one continuous skyline line. A faint trace of the whole line is swept over by a dark line as the pages arrive */
-  .splash{position:fixed;inset:0;z-index:300;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;overflow:hidden;
+  .splash{position:fixed;left:0;top:0;width:100%;height:100%;height:100dvh;z-index:300;background:var(--bg);color:var(--ink);display:flex;align-items:center;justify-content:center;overflow:hidden;
     transition:opacity .7s ease,visibility 0s .7s}
   .splash.off{opacity:0;visibility:hidden;pointer-events:none}
   .splash svg{width:min(560px,88vw);height:auto;overflow:visible;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round}
@@ -174,7 +174,7 @@
   .splash .sweep{stroke-width:1.5}
   .splash .sweep2{stroke-width:.75;opacity:.5}
   .splash .det path{stroke-width:.7;opacity:.62}
-  .splash-t{font-size:13px;font-weight:300;letter-spacing:.34em;padding-left:.34em}
+  .splash-t{position:absolute;left:0;right:0;top:calc(50% + min(560px,88vw) * .1125 + 24px);text-align:center;font-size:13px;font-weight:300;letter-spacing:.34em;padding-left:.34em}
   .scroll:focus{outline:none}
 
   @media (pointer:coarse){ .count input{font-size:16px} }
@@ -247,7 +247,7 @@
   <div class="zmap" id="zmap" aria-hidden="true"><div class="zmapin" id="zmapin"><div class="zimgs" id="zimgs"></div><div class="zvp" id="zvp"></div></div><div class="zcap" id="zcap"></div></div>
   <div class="zbar"><button class="btn" id="zin">+</button><button class="btn" id="zout">&minus;</button><button class="btn" id="zfit">Fit</button><button class="btn" id="z100">100%</button><button class="btn" id="zclose">Close</button></div><div class="zinfo" id="zinfo"></div></section>
 <div class="splash" id="splash" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-  <svg viewBox="0 0 400 90" aria-hidden="true">
+  <svg viewBox="-15 0 400 90" aria-hidden="true">
     <defs>
       <filter id="spPencil" filterUnits="userSpaceOnUse" x="-20" y="-12" width="440" height="116" color-interpolation-filters="sRGB">
         <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="4" result="w"/>
@@ -273,7 +273,7 @@
     </g>
     <g filter="url(#spPencil2)"><path class="sweep2" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" transform="translate(.7 -.6)" d="M0 80 L58 80 L58 64 L80 64 L80 70 L88 70 L88 80 L104 80 L104 44 L126 44 L126 80 L138 80 L138 56 L150 56 L150 60 L158 60 L158 80 L172 80 L172 52 L180 36 L185 10 L190 36 L198 52 L198 80 L212 80 L212 40 L236 40 L236 80 L248 80 L248 58 L262 58 L262 52 L274 52 L274 80 L290 80 L290 66 L304 66 L304 72 L312 72 L312 80 L400 80"/></g>
   </svg>
-  <div class="splash-t">selected works</div>
+  <div class="splash-t">portfolio 23-26</div>
 </div>
 
 <div class="dock" id="dock" aria-label="Page navigator">
@@ -379,7 +379,16 @@ const PAGES=["lo/p00.jpg","lo/p01.jpg","lo/p02.jpg","lo/p03.jpg","lo/p04.jpg","l
 
   const isEnd = () => { const [a, b] = spreadOf(flip.getCurrentPageIndex()); return a === N || b === N; };
   const next = () => view === 'flip' ? (isEnd() ? setView('3d') : flip.flipNext()) : view === 'scroll' ? scrollStep(1) : null;
-  const prev = () => view === 'flip' ? flip.flipPrev() : view === 'scroll' ? scrollStep(-1) : setView('flip');
+  let lastCoverBack = 0;   // double-press "back" on the front cover -> 3D mockup (mirror of "next" on the back cover)
+  const prev = () => {
+    if (view === 'flip' && flip.getCurrentPageIndex() === 0) {
+      const now = performance.now();
+      if (now - lastCoverBack < 450) { lastCoverBack = 0; setView('3d'); } else lastCoverBack = now;
+      return;
+    }
+    lastCoverBack = 0;
+    view === 'flip' ? flip.flipPrev() : view === 'scroll' ? scrollStep(-1) : setView('flip');
+  };
   $('next').onclick = $('navr').onclick = next;
   $('prev').onclick = $('navl').onclick = prev;
 
@@ -785,6 +794,27 @@ const PAGES=["lo/p00.jpg","lo/p01.jpg","lo/p02.jpg","lo/p03.jpg","lo/p04.jpg","l
   // slider: label follows the thumb while dragging, jump when released
   dkRange.addEventListener('input', () => { const n = +dkRange.value; dkLbl.textContent = 'Go to page ' + n; centerOn(n, false); });
   dkRange.addEventListener('change', () => goPage(+dkRange.value));
+  // subtle hint: after ~10s of stillness, or after flipping 3 pages in quick succession, the "Pages" tab lifts a few px
+  const dkTab = dock.querySelector('.dock-tab');
+  let dkIdleT = 0, dkHintAt = 0, dkFlips = [], dkLastA = curA;
+  function dockHint(){
+    const now = performance.now();
+    if (now - dkHintAt < 6000 || dock.classList.contains('open') || view === '3d' || document.body.classList.contains('zooming') || !dkTab.animate) return;
+    dkHintAt = now;
+    dkTab.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-5px)', offset: .4 }, { transform: 'translateY(0)' }], { duration: 1100, easing: 'ease-in-out' });
+  }
+  function dkIdleReset(){ clearTimeout(dkIdleT); dkIdleT = setTimeout(dockHint, 5000); }
+  ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(ev => addEventListener(ev, dkIdleReset, { passive: true, capture: true }));
+  dkIdleReset();
+  const prevSync = onSync;
+  onSync = function(a, b){
+    prevSync(a, b);
+    if (a !== dkLastA) {
+      dkLastA = a; const t = performance.now();
+      dkFlips = dkFlips.filter(x => t - x < 2500); dkFlips.push(t);
+      if (dkFlips.length >= 3) { dkFlips = []; setTimeout(dockHint, 450); }
+    }
+  };
   // show / hide
   function dockOpen(){ clearTimeout(closeT); dock.classList.add('open'); centerOn(curA, false); }
   function dockClose(d){ clearTimeout(closeT); closeT = setTimeout(() => { if (!dkDown) dock.classList.remove('open'); }, d == null ? 400 : d); }
